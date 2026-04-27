@@ -8,7 +8,7 @@ import {
   updateProfile,
   signInWithPopup
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { FiTerminal, FiUser, FiMail, FiLock } from 'react-icons/fi';
@@ -52,19 +52,6 @@ export default function AuthPage() {
     setError('');
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const userEmail = result.user.email?.toLowerCase() || '';
-
-      // Allowlist check for Google users (master always passes)
-      if (userEmail !== 'master@gmail.com') {
-        const allowSnap = await getDoc(doc(db, 'allowlist', userEmail));
-        if (!allowSnap.exists()) {
-          await import('firebase/auth').then(m => m.signOut(auth));
-          setError('Your email is not on the approved access list. Contact the administrator.');
-          setIsLoading(false);
-          return;
-        }
-      }
-
       await saveUserToDb(result.user.uid, {
         email: result.user.email,
         displayName: result.user.displayName || result.user.email?.split('@')[0],
@@ -93,16 +80,6 @@ export default function AuthPage() {
           setError('Preferred Name is required.');
           setIsLoading(false);
           return;
-        }
-        // Allowlist check — master always bypasses
-        const emailLower = email.toLowerCase();
-        if (emailLower !== 'master@gmail.com') {
-          const allowSnap = await getDoc(doc(db, 'allowlist', emailLower));
-          if (!allowSnap.exists()) {
-            setError('Your email is not on the approved access list. Contact the administrator.');
-            setIsLoading(false);
-            return;
-          }
         }
         const result = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(result.user, { displayName: displayName.trim() });

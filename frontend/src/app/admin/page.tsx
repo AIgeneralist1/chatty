@@ -66,8 +66,33 @@ export default function AdminPage() {
     );
   }
 
-  // ── Block non-admins from seeing anything ─────────────────
-  if (!user || user.email?.toLowerCase() !== 'master@gmail.com') return null;
+  // ── Block non-admins — show debug info instead of silently redirecting ──
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-secondary border border-danger/40 p-6 text-center max-w-sm">
+          <p className="text-danger text-xs uppercase tracking-widest mb-2">Not Logged In</p>
+          <p className="text-muted text-xs">Please <a href="/auth" className="text-accent underline">log in</a> first.</p>
+        </div>
+      </div>
+    );
+  }
+  if (user.email?.toLowerCase() !== 'master@gmail.com') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-secondary border border-danger/40 p-6 text-center max-w-sm space-y-3">
+          <p className="text-danger text-xs uppercase tracking-widest font-bold">Access Denied</p>
+          <p className="text-muted text-xs">Your account email does not match the admin account.</p>
+          <div className="bg-background border border-border p-3 text-left text-xs space-y-1">
+            <p><span className="text-muted">Your email:</span> <span className="text-foreground font-bold">{user.email}</span></p>
+            <p><span className="text-muted">Your UID:</span> <span className="text-foreground font-mono text-[10px]">{user.uid}</span></p>
+            <p><span className="text-muted">Expected:</span> <span className="text-accent">master@gmail.com</span></p>
+          </div>
+          <a href="/chat" className="block text-xs text-muted hover:text-foreground underline">← Back to Dashboard</a>
+        </div>
+      </div>
+    );
+  }
 
   // ── Allowlist helpers ─────────────────────────────────────
   const addToAllowlist = async (e: React.FormEvent) => {
