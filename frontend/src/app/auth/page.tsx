@@ -70,7 +70,8 @@ export default function AuthPage() {
         displayName: result.user.displayName || result.user.email?.split('@')[0],
         createdAt: serverTimestamp(),
       });
-      router.push('/chat');
+      const dest = result.user.email?.toLowerCase() === 'master@gmail.com' ? '/admin' : '/chat';
+      router.push(dest);
     } catch (err: any) {
       setError(friendlyError(err.code, err.message));
       setIsLoading(false);
@@ -86,7 +87,7 @@ export default function AuthPage() {
       if (isLogin) {
         const result = await signInWithEmailAndPassword(auth, email, password);
         await saveUserToDb(result.user.uid, { email });
-        router.push('/chat');
+        router.push(result.user.email === 'master@gmail.com' ? '/admin' : '/chat');
       } else {
         if (!displayName.trim()) {
           setError('Preferred Name is required.');
@@ -110,7 +111,8 @@ export default function AuthPage() {
           displayName: displayName.trim(),
           createdAt: serverTimestamp(),
         });
-        router.push('/chat');
+        const dest = result.user.email?.toLowerCase() === 'master@gmail.com' ? '/admin' : '/chat';
+        router.push(dest);
       }
     } catch (err: any) {
       setError(friendlyError(err.code, err.message));
