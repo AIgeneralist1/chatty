@@ -22,7 +22,7 @@ type RoomType = 'persistent' | 'temp';
 interface Room { roomId: string; name: string; type?: RoomType; }
 
 export default function ChatDashboard() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   const [view, setView] = useState<View>('dashboard');
@@ -58,8 +58,9 @@ export default function ChatDashboard() {
 
   // ── Route guard ───────────────────────────────────────────
   useEffect(() => {
+    if (loading) return;
     if (!user) router.push('/auth');
-  }, [user, router]);
+  }, [user, loading, router]);
 
   // ── User document listener ────────────────────────────────
   useEffect(() => {
@@ -141,6 +142,12 @@ export default function ChatDashboard() {
     setRoomType('persistent');
     setNewPasscode('');
     setConfirmDelete(false);
+    // Reset pending state to avoid stale data bleed
+    setPendingRoomId('');
+    setPendingRoomName('');
+    setPendingRoomType('persistent');
+    setPendingStatus('pending');
+    setPendingRequests([]);
     setView(v);
   };
 
@@ -274,20 +281,20 @@ export default function ChatDashboard() {
   };
 
   // ── Approve join request (creator only) ───────────────────
-  const handleApprove = async (requestUserId: string, displayName: string) => {
+  const handleApprove = async (requestUserId: string) => {
     const rType = activeRoomType;
-    // Mark approved
     await setDoc(doc(db, `rooms/${activeRoomId}/join_requests/${requestUserId}`), {
       status: 'approved', roomType: rType, approvedAt: serverTimestamp(),
     }, { merge: true });
-    // Add to room's approved members
     await setDoc(doc(db, 'rooms', activeRoomId), {
       approvedMembers: arrayUnion(requestUserId)
     }, { merge: true });
-    // Save to user's rooms list
-    await setDoc(doc(db, 'users', requestUserId), {
-      rooms: arrayUnion({ roomId: activeRoomId, name: activeRoomName, type: rType })
-    }, { merge: true });
+    // Only persist room reference for persistent rooms
+    if (rType === 'persistent') {
+      await setDoc(doc(db, 'users', requestUserId), {
+        rooms: arrayUnion({ roomId: activeRoomId, name: activeRoomName, type: rType })
+      }, { merge: true });
+    }
   };
 
   // ── Deny join request (creator only) ─────────────────────
@@ -295,6 +302,14 @@ export default function ChatDashboard() {
     await setDoc(doc(db, `rooms/${activeRoomId}/join_requests/${requestUserId}`), {
       status: 'denied', deniedAt: serverTimestamp(),
     }, { merge: true });
+  };
+
+  // ── Cancel own pending join request ───────────────────────
+  const cancelJoinRequest = async () => {
+    if (pendingRoomId && user) {
+      await deleteDoc(doc(db, `rooms/${pendingRoomId}/join_requests/${user.uid}`)).catch(() => {});
+    }
+    goToView('dashboard');
   };
 
   // ── Enter saved room ──────────────────────────────────────
@@ -321,12 +336,15 @@ export default function ChatDashboard() {
   // ── Leave room ────────────────────────────────────────────
   const leaveRoom = async () => {
     if (activeRoomType === 'temp') {
-      // Auto-burn: delete all messages + room doc
+      // Auto-burn: delete messages, join_requests subcollection, then room doc
       try {
         await deleteRoomMessages(activeRoomId);
+        const reqSnap = await getDocs(collection(db, `rooms/${activeRoomId}/join_requests`));
+        await Promise.all(reqSnap.docs.map(d => deleteDoc(d.ref)));
         await deleteDoc(doc(db, 'rooms', activeRoomId));
       } catch {}
     }
+    setPendingRequests([]);
     setMessages([]);
     setNewPasscode('');
     goToView('dashboard');
@@ -363,16 +381,17 @@ export default function ChatDashboard() {
     // Length check
     if (text.length > MAX_MSG_LENGTH) return;
 
-    setNewMessage('');
+    setNewMessage(''); // optimistic clear
     try {
       await addDoc(collection(db, `rooms/${activeRoomId}/messages`), {
-        text, // stored as plain text, rendered as text (no HTML injection possible)
+        text,
         senderId: user.uid,
         senderName: userData?.displayName || user.displayName || user.email?.split('@')[0],
         createdAt: serverTimestamp(),
       });
     } catch (err) {
       console.error('Send error:', err);
+      setNewMessage(text); // restore message on failure
     }
   };
 
@@ -571,7 +590,7 @@ export default function ChatDashboard() {
               <h2 className="text-base font-bold text-foreground uppercase tracking-wider mb-2">Awaiting Approval</h2>
               <p className="text-muted text-xs mb-1">Room: <span className="text-foreground font-semibold">{pendingRoomName}</span></p>
               <p className="text-muted text-xs mb-6">Your join request has been sent. Waiting for the room creator to approve.</p>
-              <button onClick={() => goToView('dashboard')}
+              <button onClick={cancelJoinRequest}
                 className="w-full py-2.5 bg-secondary border border-border text-muted text-xs uppercase tracking-widest hover:text-foreground transition-colors">
                 Cancel Request
               </button>
@@ -646,7 +665,7 @@ export default function ChatDashboard() {
                 <span className="text-muted text-[10px] ml-2">{req.email}</span>
               </div>
               <div className="flex gap-2 shrink-0">
-                <button onClick={() => handleApprove(req.userId, req.displayName)}
+                <button onClick={() => handleApprove(req.userId)}
                   className="text-[10px] uppercase tracking-wider px-3 py-1 border border-accent/40 text-accent hover:bg-accent/10 transition-colors font-semibold">
                   Approve
                 </button>
