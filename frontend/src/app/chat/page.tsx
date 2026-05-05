@@ -412,7 +412,7 @@ export default function ChatDashboard() {
         <header className="bg-secondary border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FiTerminal className="text-accent text-lg" />
-            <span className="text-foreground font-bold uppercase tracking-widest text-sm">Private Chat</span>
+            <span className="text-foreground font-bold uppercase tracking-widest text-sm">Chatty</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-muted text-xs hidden sm:block">{userData?.displayName || user.email}</span>

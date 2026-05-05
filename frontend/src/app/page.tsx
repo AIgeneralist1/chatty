@@ -26,8 +26,8 @@ export default function Home() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
-          Private Chat
+        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground uppercase tracking-widest">
+          Chatty
         </h1>
         <p className="text-sm text-muted mb-10">
           End-to-end private. Invite-only rooms.

@@ -103,7 +103,7 @@ export default function AuthPage() {
         {/* Brand */}
         <div className="flex items-center gap-2 justify-center mb-8">
           <FiTerminal className="text-accent text-xl" />
-          <span className="text-foreground font-bold uppercase tracking-widest text-sm">Private Chat</span>
+          <span className="text-foreground font-bold uppercase tracking-widest text-sm">Chatty</span>
         </div>
 
         <div className="bg-secondary border border-border p-6 sm:p-8">
